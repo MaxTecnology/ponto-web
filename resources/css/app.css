@@ -1,0 +1,261 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+@layer base {
+    :root {
+        --color-bg: 248 250 252;
+        --color-surface: 255 255 255;
+        --color-surface-alt: 241 245 249;
+        --color-border: 203 213 225;
+        --color-text: 15 23 42;
+        --color-muted: 100 116 139;
+        --color-primary: 79 70 229;
+        --color-primary-dark: 67 56 202;
+        --color-success: 16 185 129;
+        --color-danger: 239 68 68;
+        --radius-sm: 0.5rem;
+        --radius-md: 0.75rem;
+        --shadow-sm: 0 10px 30px -12px rgb(15 23 42 / 0.12);
+        color-scheme: light;
+    }
+
+    body {
+        @apply min-h-screen bg-[rgb(var(--color-bg))] text-[rgb(var(--color-text))] font-sans;
+        background-image: radial-gradient(circle at top left, rgba(79, 70, 229, 0.12), transparent 55%),
+            radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.1), transparent 45%);
+    }
+
+    a {
+        @apply text-[rgb(var(--color-primary))] transition-colors;
+    }
+
+    a:hover {
+        @apply text-[rgb(var(--color-primary-dark))];
+    }
+}
+
+@layer components {
+    .app-card {
+        @apply rounded-[var(--radius-md)] bg-[rgb(var(--color-surface))] shadow-[var(--shadow-sm)] border border-[rgb(var(--color-border))]/60;
+    }
+
+    .app-card-muted {
+        @apply rounded-[var(--radius-md)] bg-[rgb(var(--color-surface-alt))] border border-[rgb(var(--color-border))]/40;
+    }
+
+    .app-button {
+        @apply inline-flex items-center justify-center gap-2 rounded-[calc(var(--radius-sm))] bg-[rgb(var(--color-primary))] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[rgb(var(--color-primary-dark))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgb(var(--color-primary))];
+    }
+
+    .app-button-secondary {
+        @apply inline-flex items-center justify-center gap-2 rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-border))] bg-white px-4 py-2 text-sm font-medium text-[rgb(var(--color-text))] hover:border-[rgb(var(--color-primary))]/50 hover:text-[rgb(var(--color-primary))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgb(var(--color-primary))]/60;
+    }
+
+    .app-button-success {
+        @apply inline-flex items-center justify-center gap-2 rounded-[calc(var(--radius-sm))] bg-[rgb(var(--color-success))] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgb(var(--color-success))]/60;
+    }
+
+    .app-button-danger {
+        @apply inline-flex items-center justify-center gap-2 rounded-[calc(var(--radius-sm))] bg-[rgb(var(--color-danger))] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgb(var(--color-danger))]/60;
+    }
+
+    .app-button-ghost {
+        @apply inline-flex items-center justify-center gap-2 rounded-[calc(var(--radius-sm))] px-3 py-2 text-sm font-medium text-[rgb(var(--color-muted))] hover:text-[rgb(var(--color-primary))] hover:bg-[rgb(var(--color-surface-alt))] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[rgb(var(--color-primary))]/40;
+    }
+
+    .app-input {
+        @apply w-full rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-border))] bg-white px-3 py-2 text-sm text-[rgb(var(--color-text))] shadow-sm focus:border-[rgb(var(--color-primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-primary))]/40;
+    }
+
+    .app-label {
+        @apply block text-sm font-medium text-[rgb(var(--color-muted))];
+    }
+
+    .app-checkbox {
+        @apply h-4 w-4 rounded border-[rgb(var(--color-border))] text-[rgb(var(--color-primary))] focus:ring-[rgb(var(--color-primary))];
+    }
+
+    .app-alert-success {
+        @apply rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-success))]/40 bg-[rgb(var(--color-success))]/10 px-4 py-3 text-sm text-[rgb(var(--color-success))] shadow-sm;
+    }
+
+    .app-alert-danger {
+        @apply rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-danger))]/30 bg-[rgb(var(--color-danger))]/10 px-4 py-3 text-sm text-[rgb(var(--color-danger))] shadow-sm;
+    }
+
+    .app-table {
+        @apply min-w-full divide-y divide-[rgb(var(--color-border))] text-sm;
+    }
+
+    .app-table thead {
+        @apply bg-[rgb(var(--color-surface-alt))];
+    }
+
+    .app-badge {
+        @apply inline-flex items-center rounded-full border border-[rgb(var(--color-border))]/70 bg-[rgb(var(--color-surface-alt))] px-2 py-0.5 text-xs font-medium text-[rgb(var(--color-muted))];
+    }
+
+    .app-badge-success {
+        @apply border-transparent bg-[rgb(var(--color-success))]/15 text-[rgb(var(--color-success))];
+    }
+
+    .app-badge-warning {
+        @apply border-transparent bg-amber-100 text-amber-700;
+    }
+
+    .app-badge-danger {
+        @apply border-transparent bg-[rgb(var(--color-danger))]/15 text-[rgb(var(--color-danger))];
+    }
+
+    .app-badge-info {
+        @apply border-transparent bg-sky-100 text-sky-700;
+    }
+
+    .app-badge-neutral {
+        @apply border-transparent bg-slate-100 text-slate-600;
+    }
+
+    .app-empty-state {
+        @apply flex flex-col items-center justify-center gap-2 rounded-[calc(var(--radius-sm))] border border-dashed border-[rgb(var(--color-border))]/70 bg-white/60 px-6 py-10 text-center text-sm text-[rgb(var(--color-muted))];
+    }
+
+    .app-table-wrapper {
+        @apply overflow-hidden overflow-x-auto rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-border))]/60 bg-white;
+    }
+
+    .app-section-heading {
+        @apply text-lg font-semibold text-[rgb(var(--color-text))];
+    }
+
+    .app-section-subtitle {
+        @apply text-sm text-[rgb(var(--color-muted))];
+    }
+
+    .app-stat {
+        @apply rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-border))]/60 bg-[rgb(var(--color-surface))] px-4 py-5 shadow-sm;
+    }
+
+    .app-stat-title {
+        @apply text-xs font-semibold uppercase tracking-wide text-[rgb(var(--color-muted))];
+    }
+
+    .app-stat-value {
+        @apply mt-2 text-2xl font-semibold text-[rgb(var(--color-text))];
+    }
+
+    .app-tag-list {
+        @apply flex flex-wrap gap-2;
+    }
+
+    .app-divider {
+        @apply h-px bg-[rgb(var(--color-border))]/60;
+    }
+
+    .app-brand {
+        @apply inline-flex items-center gap-3 text-lg font-semibold text-[rgb(var(--color-text))];
+    }
+
+    .app-brand-badge {
+        @apply flex h-9 w-9 items-center justify-center rounded-full text-sm font-semibold text-white shadow-sm;
+        background: linear-gradient(135deg, rgb(var(--color-primary)) 0%, #7c3aed 45%, #06b6d4 100%);
+    }
+
+    .app-brand-logo {
+        @apply flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-[rgb(var(--color-border))]/50 bg-white shadow-sm p-1;
+    }
+
+    .app-brand-logo img {
+        @apply h-full w-full object-contain;
+    }
+
+    .auth-wrapper {
+        @apply relative grid gap-10 overflow-hidden rounded-[var(--radius-md)] border border-[rgb(var(--color-border))]/60 bg-white/90 p-6 shadow-[var(--shadow-sm)] sm:p-10 lg:grid-cols-[minmax(0,1fr)_420px];
+    }
+
+    .auth-hero {
+        @apply relative hidden h-full flex-col justify-between rounded-[calc(var(--radius-md)-0.25rem)] bg-gradient-to-br from-[rgb(var(--color-primary))] via-indigo-500 to-sky-500 p-10 text-white lg:flex;
+    }
+
+    .auth-hero::after {
+        content: '';
+        @apply pointer-events-none absolute inset-6 rounded-[calc(var(--radius-md)-0.75rem)] border border-white/10;
+    }
+
+    .auth-hero-badge {
+        @apply inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1 text-xs font-semibold uppercase tracking-[0.3em] text-white/90;
+    }
+
+    .auth-hero-list {
+        @apply space-y-4 text-sm text-white/80;
+    }
+
+    .auth-hero-list li {
+        @apply flex items-start gap-3;
+    }
+
+    .auth-hero-list li::before {
+        content: '';
+        @apply mt-1.5 h-2 w-2 flex-none rounded-full bg-emerald-300 shadow-[0_0_0_3px_rgba(255,255,255,0.18)];
+    }
+
+    .auth-card {
+        @apply flex flex-col gap-6 rounded-[calc(var(--radius-md)-0.25rem)] bg-white p-6 shadow-sm sm:p-8;
+    }
+
+    .auth-form {
+        @apply space-y-5;
+    }
+
+    .auth-remember {
+        @apply flex items-center justify-between;
+    }
+
+    .app-brand-text {
+        @apply leading-tight;
+    }
+
+    .app-brand-subtitle {
+        @apply block text-xs font-medium uppercase tracking-[0.22em] text-[rgb(var(--color-muted))];
+    }
+
+    .app-nav {
+        @apply flex items-center gap-1 text-sm;
+    }
+
+    .app-nav-link {
+        @apply inline-flex items-center gap-1 rounded-[calc(var(--radius-sm))] px-3 py-2 font-medium text-[rgb(var(--color-muted))] transition-colors hover:text-[rgb(var(--color-primary))];
+    }
+
+    .app-nav-link.is-active {
+        @apply text-[rgb(var(--color-primary))] bg-[rgb(var(--color-surface-alt))] shadow-sm;
+    }
+
+    .app-nav-group {
+        @apply flex items-center gap-1 rounded-[calc(var(--radius-sm))] border border-transparent px-1 py-1;
+    }
+
+    .app-user-chip {
+        @apply hidden items-center gap-3 rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-border))]/60 bg-white px-3 py-2 text-left shadow-sm md:flex;
+    }
+
+    .app-user-avatar {
+        @apply flex h-9 w-9 items-center justify-center rounded-full bg-[rgb(var(--color-primary))]/10 text-sm font-semibold text-[rgb(var(--color-primary))];
+    }
+
+    .app-user-name {
+        @apply text-sm font-medium text-[rgb(var(--color-text))];
+    }
+
+    .app-user-role {
+        @apply text-xs uppercase tracking-wide text-[rgb(var(--color-muted))];
+    }
+}
