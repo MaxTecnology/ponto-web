@@ -79,7 +79,10 @@ class ExportController extends Controller
         }
 
         $punches = $query->orderBy('punches.ts_server')->get();
-        $timezone = config('app.timezone');
+        $timezone = config('app.timezone', 'America/Maceio');
+        if ($timezone === 'UTC') {
+            $timezone = 'America/Maceio';
+        }
 
         $filename = 'export_pontos_' . CarbonImmutable::now('UTC')->format('Ymd_His') . '.csv';
 
@@ -110,8 +113,8 @@ class ExportController extends Controller
                     $punch->user->email,
                     $punch->user->role,
                     $tsLocal?->format('Y-m-d'),
-                    Timezone::toLocal($punch->ts_server, 'UTC')?->format('c'),
-                    $tsLocal?->format('c'),
+                    Timezone::toLocal($punch->ts_server, 'UTC')?->format('Y-m-d\TH:i:sP'),
+                    $tsLocal?->format('Y-m-d\TH:i:sP'),
                     $punch->type,
                     $punch->ip,
                     $punch->user_agent,

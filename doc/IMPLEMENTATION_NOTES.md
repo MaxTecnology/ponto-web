@@ -10,7 +10,7 @@ Este documento resume o que foi construído no MVP conforme as especificações 
 - Timezone: dados em UTC, exibição em America/Maceio.
 
 ## Fluxos do Colaborador
-- **Bater Ponto (`/ponto`)**: coleta tipo, observação, geolocalização (obrigatória), fingerprint e device info detalhado. Backend valida intervalo mínimo configurável em `settings`.
+- **Bater Ponto (`/ponto`)**: coleta tipo, observação, geolocalização (obrigatória), fingerprint e device info detalhado. Backend valida intervalo mínimo configurável em `settings.key = ponto`.
 - **Meu Espelho (`/meu-espelho`)**: visão mensal com batidas em horário local, total trabalhado e formulário de solicitação de ajuste (criar/editar/remover pendentes). Tabela “Minhas Solicitações” mostra status e comentários do RH.
 - **Perfil (`/perfil`)**: atualizar nome e alterar senha com verificação da senha atual.
 
@@ -32,8 +32,8 @@ Executar `php artisan migrate --seed` (via Sail: `./vendor/bin/sail artisan migr
 - `colab@example.com` — colaborador
 
 ## Regras Específicas
-- Geolocalização obrigatória para registrar batida.
-- Intervalo mínimo entre batidas configurável (`settings.key = ponto`, campo `min_interval_minutes`).
+- Geolocalização obrigatória para registrar batida (bloqueia tentativa sem consentimento).
+- Intervalo mínimo entre batidas configurável (`settings.key = ponto`, campo `min_interval_minutes`) com ajuste via painel admin.
 - Links inválidos são redirecionados conforme o perfil (admin → `/admin/users`, RH → `/rh/ponto`, colaborador → `/ponto`, convidados → `/login`).
 
 ## Estrutura de Dados

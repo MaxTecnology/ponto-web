@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -29,9 +30,20 @@ class UserRoles extends Component
 
     public string $newRole = User::ROLE_COLABORADOR;
 
+    #[Validate('required|integer|min:0|max:60')]
+    public int $pontoMinInterval = 2;
+
     public function mount(): void
     {
         $this->newRole = User::ROLE_COLABORADOR;
+
+        $config = Setting::value('ponto', []);
+        $this->pontoMinInterval = (int) ($config['min_interval_minutes'] ?? 2);
+    }
+
+    private function notify(string $type, string $message): void
+    {
+        $this->dispatch('notify', type: $type, message: $message);
     }
 
     public function render()
@@ -72,7 +84,7 @@ class UserRoles extends Component
             'role' => $validated['role'],
         ]);
 
-        session()->flash('status', 'Perfil atualizado com sucesso.');
+        $this->notify('success', 'Perfil atualizado com sucesso.');
         $this->reset(['editingUserId', 'editingName', 'editingEmail']);
     }
 
@@ -92,7 +104,7 @@ class UserRoles extends Component
             'role' => $data['newRole'],
         ]);
 
-        session()->flash('status', 'Usuário criado com sucesso.');
+        $this->notify('success', 'Usuário criado com sucesso.');
 
         $this->reset(['newName', 'newEmail', 'newPassword']);
         $this->newRole = User::ROLE_COLABORADOR;
@@ -101,7 +113,7 @@ class UserRoles extends Component
     public function deactivateUser(int $userId): void
     {
         if ($userId === Auth::id()) {
-            session()->flash('status', 'Você não pode desativar a própria conta.');
+            $this->notify('warning', 'Você não pode desativar a própria conta.');
             return;
         }
 
@@ -113,7 +125,7 @@ class UserRoles extends Component
 
         $user->update(['deactivated_at' => now('UTC')]);
 
-        session()->flash('status', 'Usuário desativado.');
+        $this->notify('success', 'Usuário desativado.');
     }
 
     public function activateUser(int $userId): void
@@ -126,6 +138,20 @@ class UserRoles extends Component
 
         $user->update(['deactivated_at' => null]);
 
-        session()->flash('status', 'Usuário reativado.');
+        $this->notify('success', 'Usuário reativado.');
+    }
+
+    public function updatePontoSettings(): void
+    {
+        $data = $this->validate([
+            'pontoMinInterval' => ['required', 'integer', 'between:0,60'],
+        ]);
+
+        Setting::query()->updateOrCreate(
+            ['key' => 'ponto'],
+            ['value' => ['min_interval_minutes' => (int) $data['pontoMinInterval']]]
+        );
+
+        $this->notify('success', 'Intervalo mínimo atualizado com sucesso.');
     }
 }

@@ -46,11 +46,11 @@
         <form method="dialog" class="space-y-4 p-6">
             <h3 class="text-lg font-semibold text-slate-800">Consentimento de Geolocalização</h3>
             <p class="text-sm text-slate-600">
-                Ao continuar, você autoriza a coleta de localização aproximada e informações do dispositivo para comprovar local de trabalho remoto e prevenir fraudes. Esses dados são acessíveis apenas ao RH/Admin e armazenados por até 12 meses (geolocalização), enquanto registros de ponto ficam por até 5 anos conforme política interna. Você pode negar; o registro será feito sem localização e marcado para revisão.
+                Para registrar o ponto é obrigatório autorizar a coleta de localização aproximada e informações do dispositivo. Esses dados são usados para confirmar o local de trabalho remoto e prevenir fraudes, ficando disponíveis apenas para RH/Admin conforme nossa política interna. Caso não permita agora, não será possível concluir a batida.
             </p>
             <div class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                <button type="button" data-action="deny" class="app-button-secondary w-full sm:w-auto">Negar</button>
-                <button type="button" data-action="accept" class="app-button w-full sm:w-auto">Concordo</button>
+                <button type="button" data-action="deny" class="app-button-secondary w-full sm:w-auto">Cancelar</button>
+                <button type="button" data-action="accept" class="app-button w-full sm:w-auto">Permitir localização</button>
             </div>
         </form>
     </dialog>
@@ -63,6 +63,7 @@
         const initPunchForm = (container) => {
             if (!container) {
                 console.warn('BaterPonto: container não encontrado');
+                window.pontoNotify?.('error', 'Não foi possível iniciar o formulário de ponto. Atualize a página.');
                 return;
             }
 
@@ -83,8 +84,12 @@
             form.dataset.bound = 'true';
 
             const collectGeo = async (enabled) => {
-                if (!enabled || !navigator.geolocation) {
-                    return null;
+                if (!enabled) {
+                    return { data: null, error: 'consent-denied' };
+                }
+
+                if (!navigator.geolocation) {
+                    return { data: null, error: 'not-supported' };
                 }
 
                 return new Promise((resolve) => {
@@ -92,7 +97,7 @@
                     const timer = setTimeout(() => {
                         if (!resolved) {
                             resolved = true;
-                            resolve(null);
+                            resolve({ data: null, error: 'timeout' });
                         }
                     }, 7000);
 
@@ -101,15 +106,26 @@
                         resolved = true;
                         clearTimeout(timer);
                         resolve({
-                            lat: position.coords.latitude,
-                            lon: position.coords.longitude,
-                            accuracy_m: position.coords.accuracy,
+                            data: {
+                                lat: position.coords.latitude,
+                                lon: position.coords.longitude,
+                                accuracy_m: position.coords.accuracy,
+                            },
+                            error: null,
                         });
-                    }, () => {
+                    }, (geoError) => {
                         if (resolved) return;
                         resolved = true;
                         clearTimeout(timer);
-                        resolve(null);
+                        let reason = 'unknown';
+                        if (geoError?.code === geoError.PERMISSION_DENIED) {
+                            reason = 'permission-denied';
+                        } else if (geoError?.code === geoError.POSITION_UNAVAILABLE) {
+                            reason = 'position-unavailable';
+                        } else if (geoError?.code === geoError.TIMEOUT) {
+                            reason = 'timeout';
+                        }
+                        resolve({ data: null, error: reason });
                     }, { enableHighAccuracy: true, timeout: 7000 });
                 });
             };
@@ -205,6 +221,8 @@
                     deviceMemory,
                 ].join('|');
 
+                const geoResult = await collectGeo(geoConsent);
+
                 return {
                     ts_client: new Date().toISOString(),
                     device_info: {
@@ -226,7 +244,8 @@
                         brands: userAgentParsed.brands,
                     },
                     fingerprint_hash: await hashFingerprint(fingerprintSource),
-                    geo: await collectGeo(geoConsent),
+                    geo: geoResult.data,
+                    geo_error: geoResult.error,
                     geo_consent: geoConsent,
                 };
             };
@@ -257,6 +276,7 @@
 
                 if (!componentId) {
                     console.error('BaterPonto: componentId ausente');
+                    window.pontoNotify?.('error', 'Não foi possível identificar o componente de ponto. Recarregue a página.');
                     return;
                 }
 
@@ -273,11 +293,25 @@
                     }
 
                     if (!geoConsent) {
-                        alert('Para registrar o ponto é necessário permitir a coleta de localização. Tente novamente concedendo o acesso.');
+                        window.pontoNotify?.('warning', 'Para registrar o ponto será necessário permitir a localização. Autorize o acesso e tente novamente.');
                         return;
                     }
 
                     const payload = await collectPayload(geoConsent);
+
+                    if (!payload.geo) {
+                        const reasons = {
+                            'permission-denied': 'A localização foi bloqueada pelo navegador. Autorize o acesso nas configurações do navegador/sistema e tente novamente.',
+                            'not-supported': 'Seu navegador não oferece suporte à geolocalização. Utilize um navegador compatível ou habilite o serviço de localização.',
+                            'position-unavailable': 'Não foi possível determinar sua localização. Verifique se o GPS ou a localização aproximada estão habilitados.',
+                            'timeout': 'A coleta de localização demorou muito. Tente novamente próximo a uma janela ou com a rede ativa.',
+                            'unknown': 'Houve um erro inesperado ao capturar a localização. Recarregue a página e tente outra vez.',
+                        };
+
+                        window.pontoNotify?.('error', reasons[payload.geo_error] ?? reasons.unknown);
+                        return;
+                    }
+
                     const component = window.Livewire?.find(componentId);
                     if (!component) {
                         throw new Error('Livewire component não encontrado.');
@@ -288,7 +322,7 @@
                     console.info('BaterPonto: batida enviada', payload);
                 } catch (error) {
                     console.error('Erro ao bater ponto', error);
-                    alert('Não foi possível registrar o ponto. Tente novamente.');
+                    window.pontoNotify?.('error', 'Não foi possível registrar o ponto. Tente novamente.');
                 } finally {
                     submitButton.disabled = false;
                     submitButton.classList.remove('opacity-70');

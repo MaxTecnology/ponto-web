@@ -1,9 +1,10 @@
 # Sistema de Ponto Web — Especificação para Gerador de Código
 Este pacote de arquivos `.md` é para ser **lido pelo gerador de código (Codex)**. Ele descreve **o que criar**, **como organizar** e **os requisitos funcionais** do MVP.
 
-> **Stack alvo:** Laravel 11, PHP 8.3, Blade + Livewire 3, MySQL (via Sail), Redis (reservado), Tailwind (Breeze).  
+> **Stack alvo:** Laravel 12, PHP 8.3+, Blade + Livewire 3, MySQL (via Sail/Compose), Redis (reservado), Tailwind.  
 > **Escopo:** Bater ponto (colaborador) + Painel RH (listar/filtrar/ajustes/fechamento/export CSV).  
 > **Sem SPA e sem API pública** no MVP. Tudo server-rendered com Livewire.
+> **Autenticação:** fluxo custom (login/logout padrão Laravel) com bloqueio de contas desativadas; Breeze não é obrigatório.
 
 ## Ordem sugerida de leitura/execução pelo gerador
 1. `ARCHITECTURE.md` — estrutura do projeto, dependências, RBAC, configuração.
@@ -16,6 +17,7 @@ Este pacote de arquivos `.md` é para ser **lido pelo gerador de código (Codex)
 8. `PROGRESS.md` — formato de checkpoints e como reportar cada etapa.
 9. `TASKS.md` — lista de tarefas que o gerador deve executar (criar/editar arquivos).
 10. `CHECKLIST_DE_DEPLOY.md` — **(produção)**: publicar com Docker, Nginx+TLS, backups, cron, rollback.
+11. `CHANGELOG.md` — decisões e ajustes relevantes no escopo do gerador.
 
 ### Materiais de apoio
 - `GLOSSARIO.md` — referência de termos de negócio/técnicos (pode ser lido a qualquer momento).

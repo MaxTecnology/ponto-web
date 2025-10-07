@@ -25,6 +25,23 @@ class Fechamento extends Component
 
     public array $fechamentos = [];
 
+    public array $checklist = [
+        'ajustes' => false,
+        'dias_sem_saida' => false,
+        'relatorios' => false,
+    ];
+
+    #[Validate('nullable|string|max:500')]
+    public ?string $observacao = null;
+
+    #[Validate('nullable|string|max:32')]
+    public ?string $confirmacao = null;
+
+    private function notify(string $type, string $message): void
+    {
+        $this->dispatch('notify', type: $type, message: $message);
+    }
+
     public function mount(): void
     {
         $now = CarbonImmutable::now(config('app.timezone'))->startOfMonth();
@@ -56,6 +73,16 @@ class Fechamento extends Component
     {
         $this->validate();
 
+        if (in_array(false, $this->checklist, true)) {
+            $this->notify('warning', 'Conclua todas as etapas do checklist antes de fechar o período.');
+            return;
+        }
+
+        if (trim((string) $this->confirmacao) !== 'CONFIRMAR') {
+            $this->notify('warning', 'Digite CONFIRMAR para finalizar o fechamento.');
+            return;
+        }
+
         $setting = Setting::firstOrCreate(['key' => 'ponto_fechamentos'], ['value' => []]);
         $lista = $setting->value ?? [];
 
@@ -64,6 +91,8 @@ class Fechamento extends Component
             'end' => $this->endDate,
             'closed_at' => CarbonImmutable::now('UTC')->toIso8601String(),
             'closed_by' => Auth::id(),
+            'note' => $this->observacao,
+            'checklist' => $this->checklist,
         ];
 
         $lista[] = $registro;
@@ -71,9 +100,17 @@ class Fechamento extends Component
         $setting->value = $lista;
         $setting->save();
 
-        session()->flash('status', 'Período fechado logicamente. Registre export e arquive os relatórios.');
+        $this->notify('success', 'Período fechado logicamente. Registre export e arquive os relatórios.');
 
         $this->loadFechamentos();
+
+        $this->checklist = [
+            'ajustes' => false,
+            'dias_sem_saida' => false,
+            'relatorios' => false,
+        ];
+        $this->observacao = null;
+        $this->confirmacao = null;
     }
 
     private function loadFechamentos(): void
@@ -89,6 +126,8 @@ class Fechamento extends Component
             $registro['closed_by_name'] = isset($registro['closed_by'])
                 ? ($users[$registro['closed_by']] ?? 'Usuário #' . $registro['closed_by'])
                 : null;
+            $registro['checklist'] = $registro['checklist'] ?? [];
+            $registro['note'] = $registro['note'] ?? null;
 
             return $registro;
         }, $registros ?? []);
@@ -155,5 +194,14 @@ class Fechamento extends Component
         });
 
         $this->missingExits = $faltantes;
+    }
+
+    public function toggleChecklist(string $item): void
+    {
+        if (! array_key_exists($item, $this->checklist)) {
+            return;
+        }
+
+        $this->checklist[$item] = ! $this->checklist[$item];
     }
 }

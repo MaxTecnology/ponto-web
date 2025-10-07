@@ -1,4 +1,24 @@
 <div class="space-y-6">
+    <section class="app-card p-6 space-y-4">
+        <div>
+            <h2 class="app-section-heading">Configurações Operacionais</h2>
+            <p class="app-section-subtitle">Defina regras globais usadas pelos componentes de ponto.</p>
+        </div>
+        <form wire:submit.prevent="updatePontoSettings" class="flex flex-col gap-4 md:flex-row md:items-end">
+            <div class="w-full md:w-64 space-y-1">
+                <label for="ponto-min-interval" class="app-label">Intervalo mínimo entre batidas (minutos)</label>
+                <input id="ponto-min-interval" type="number" min="0" max="60" step="1" wire:model.defer="pontoMinInterval" class="app-input" required>
+                @error('pontoMinInterval')
+                    <p class="text-xs text-rose-600">{{ $message }}</p>
+                @enderror
+                <p class="text-xs text-[rgb(var(--color-muted))]">Valor aplicado imediatamente para todos os colaboradores.</p>
+            </div>
+            <div class="flex justify-end md:justify-start">
+                <button type="submit" class="app-button">Salvar configuração</button>
+            </div>
+        </form>
+    </section>
+
     <section class="app-card p-6">
         <h2 class="app-section-heading">Novo Usuário</h2>
         <p class="app-section-subtitle">Crie usuários adicionais definindo o perfil de acesso.</p>

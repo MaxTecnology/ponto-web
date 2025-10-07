@@ -36,9 +36,6 @@ class Dashboard extends Component
     #[Url(as: 'tipo')]
     public ?string $type = null;
 
-    #[Url(as: 'sem_geo')]
-    public bool $flagSemGeo = false;
-
     #[Url(as: 'ip_novo')]
     public bool $flagIpNovo = false;
 
@@ -51,9 +48,15 @@ class Dashboard extends Component
 
     public function render()
     {
+        $query = $this->queryWithFlags();
+
+        $summary = $this->metrics(clone $query);
+        $punches = $this->paginateQuery($query);
+
         return view('livewire.rh.dashboard', [
-            'punches' => $this->punches(),
+            'punches' => $punches,
             'tipoLabels' => $this->tipoLabels,
+            'summary' => $summary,
         ]);
     }
 
@@ -64,12 +67,33 @@ class Dashboard extends Component
         }
     }
 
-    private function punches(): LengthAwarePaginator
+    public function toggleFlag(string $flag): void
+    {
+        switch ($flag) {
+            case 'ip_novo':
+                $this->flagIpNovo = ! $this->flagIpNovo;
+                break;
+            case 'fingerprint_novo':
+                $this->flagFingerprintNovo = ! $this->flagFingerprintNovo;
+                break;
+        }
+
+        $this->resetPage();
+    }
+
+    private function paginateQuery(Builder $query): LengthAwarePaginator
+    {
+        return $query
+            ->orderByDesc('punches.ts_server')
+            ->paginate($this->perPage);
+    }
+
+    private function queryWithFlags(): Builder
     {
         $query = Punch::query()
             ->with('user')
             ->select('punches.*')
-            ->selectRaw('IF(punches.geo IS NULL OR punches.geo_consent = 0, 1, 0) AS sem_geo_flag')
+            ->selectRaw('(punches.geo IS NULL OR punches.geo_consent = 0) AS sem_geo_flag')
             ->selectRaw('NOT EXISTS (
                 SELECT 1
                 FROM punches AS p2
@@ -112,10 +136,6 @@ class Dashboard extends Component
             $builder->where('punches.type', $this->type);
         });
 
-        if ($this->flagSemGeo) {
-            $query->having('sem_geo_flag', '=', 1);
-        }
-
         if ($this->flagIpNovo) {
             $query->having('ip_novo_flag', '=', 1);
         }
@@ -124,8 +144,37 @@ class Dashboard extends Component
             $query->having('fingerprint_novo_flag', '=', 1);
         }
 
-        return $query
-            ->orderByDesc('punches.ts_server')
-            ->paginate($this->perPage);
+        return $query;
+    }
+
+    private function metrics(Builder $query): array
+    {
+        $counts = DB::query()
+            ->fromSub((clone $query)->toBase(), 'stats')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw('SUM(sem_geo_flag) as sem_geo_total')
+            ->selectRaw('SUM(ip_novo_flag) as ip_novo_total')
+            ->selectRaw('SUM(fingerprint_novo_flag) as fingerprint_total')
+            ->first();
+
+        $uniqueUsers = DB::query()
+            ->fromSub((clone $query)->toBase(), 'stats_unique')
+            ->distinct()
+            ->count('stats_unique.user_id');
+
+        $total = (int) ($counts->total ?? 0);
+        $semGeo = (int) ($counts->sem_geo_total ?? 0);
+        $ipNovo = (int) ($counts->ip_novo_total ?? 0);
+        $fingerprintNovo = (int) ($counts->fingerprint_total ?? 0);
+        $geoPercent = $total > 0 ? round((($total - $semGeo) / $total) * 100) : 100;
+
+        return [
+            'total' => $total,
+            'unique_users' => (int) $uniqueUsers,
+            'sem_geo' => $semGeo,
+            'ip_novo' => $ipNovo,
+            'fingerprint_novo' => $fingerprintNovo,
+            'geo_percent' => $geoPercent,
+        ];
     }
 }

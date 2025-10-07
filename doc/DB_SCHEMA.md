@@ -1,7 +1,8 @@
 # Banco de Dados — Migrations & Seeds (MySQL)
 
-## Alterar usuários (role)
+## Alterar usuários (role / status)
 - Migration para adicionar `role VARCHAR(32) DEFAULT 'colaborador'` em `users` + índice.
+- Campo `deactivated_at TIMESTAMP NULL` em `users` para bloquear login quando preenchido.
 
 ## Tabela `punches`
 Campos:
@@ -44,6 +45,9 @@ Campos:
 ## Tabela `settings`
 - `key VARCHAR(64) PK`
 - `value JSON`
+- Registro esperado:
+  - `key = 'ponto'` → `{ "min_interval_minutes": 2 }`
+  - `key = 'ponto_fechamentos'` → lista de períodos fechados logicamente.
 
 ## Seeds
 - Usuário `rh_manager` (rh@example.com / secret123)

@@ -48,6 +48,11 @@ class BaterPonto extends Component
         return view('livewire.ponto.bater-ponto');
     }
 
+    private function notify(string $type, string $message): void
+    {
+        $this->dispatch('notify', type: $type, message: $message);
+    }
+
     public function salvar(): void
     {
         Log::debug('ponto.payload_recebido', ['payload' => $this->clientPayload]);
@@ -57,6 +62,7 @@ class BaterPonto extends Component
 
         if (! is_array($payload)) {
             $this->addError('type', 'Erro ao capturar dados do dispositivo. Tente novamente.');
+            $this->notify('error', 'Erro ao capturar dados do dispositivo. Atualize a página e tente novamente.');
             return;
         }
 
@@ -81,6 +87,7 @@ class BaterPonto extends Component
 
             if ($diffMinutes >= 0 && $diffMinutes < $minInterval) {
                 $this->addError('type', "É necessário aguardar {$minInterval} minutos entre batidas.");
+                $this->notify('warning', "Aguarde {$minInterval} minutos entre batidas para evitar duplicidade.");
                 return;
             }
         }
@@ -110,6 +117,7 @@ class BaterPonto extends Component
 
         if (empty($geo) || ! ($payload['geo_consent'] ?? false)) {
             $this->addError('type', 'Para registrar o ponto é necessário permitir a coleta de localização.');
+            $this->notify('error', 'Não foi possível registrar: habilite a localização do navegador e tente novamente.');
             return;
         }
 
@@ -151,7 +159,9 @@ class BaterPonto extends Component
 
     private function loadLastPunch(): void
     {
-        $this->lastPunch = $this->user()
+        $user = $this->user();
+
+        $this->lastPunch = $user
             ->punches()
             ->whereDate('ts_server', CarbonImmutable::now('UTC')->toDateString())
             ->latest('ts_server')

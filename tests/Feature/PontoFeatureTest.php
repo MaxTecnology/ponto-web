@@ -55,7 +55,7 @@ class PontoFeatureTest extends TestCase
         $this->assertEquals(config('app.timezone'), $punch->ts_server->getTimezone()->getName());
     }
 
-    public function test_batida_sem_geo_marca_flag(): void
+    public function test_batida_sem_geo_eh_bloqueada(): void
     {
         $user = User::factory()->create(['role' => User::ROLE_COLABORADOR]);
         $this->actingAs($user);
@@ -70,11 +70,9 @@ class PontoFeatureTest extends TestCase
                 'geo_consent' => false,
             ])
             ->call('salvar')
-            ->assertHasNoErrors();
+            ->assertHasErrors(['type']);
 
-        $punch = Punch::first();
-        $this->assertNull($punch->geo);
-        $this->assertFalse($punch->geo_consent);
+        $this->assertDatabaseCount('punches', 0);
     }
 
     public function test_rh_dashboard_filtros(): void
@@ -109,9 +107,9 @@ class PontoFeatureTest extends TestCase
             ->set('startDate', CarbonImmutable::now('America/Maceio')->subDay()->format('Y-m-d'))
             ->set('endDate', CarbonImmutable::now('America/Maceio')->format('Y-m-d'))
             ->set('userSearch', 'Maria')
-            ->set('flagSemGeo', true)
+            ->set('flagIpNovo', true)
             ->assertSee('Maria Silva')
-            ->assertSee('sem_geo');
+            ->assertSee('ip_novo');
     }
 
     public function test_fluxo_ajuste_aprovado(): void
@@ -193,8 +191,8 @@ class PontoFeatureTest extends TestCase
                 'ts_client' => CarbonImmutable::now('UTC')->toIso8601String(),
                 'device_info' => ['platform' => 'TestOS', 'language' => 'pt-BR', 'screen' => ['width' => 1920, 'height' => 1080], 'timezone' => 'America/Maceio'],
                 'fingerprint_hash' => str_repeat('d', 64),
-                'geo' => null,
-                'geo_consent' => false,
+                'geo' => ['lat' => -9.6, 'lon' => -35.7, 'accuracy_m' => 15],
+                'geo_consent' => true,
             ])
             ->call('salvar')
             ->assertHasErrors(['type']);

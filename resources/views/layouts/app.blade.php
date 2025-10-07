@@ -96,7 +96,7 @@
         <main class="flex-1">
             <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
                 @if (session('status'))
-                    <div class="mb-6 app-alert-success">{{ session('status') }}</div>
+                    <div id="session-status-banner" class="mb-6 app-alert-success" data-session-status="{{ session('status') }}">{{ session('status') }}</div>
                 @endif
 
                 @if ($errors->any())
@@ -122,6 +122,142 @@
     </div>
 
     @livewireScripts
+    <script>
+        (() => {
+            const rootId = 'ponto-toast-root';
+            let root = null;
+
+            const themes = {
+                success: { bg: '#ecfdf5', border: '#6ee7b7', color: '#065f46' },
+                error: { bg: '#fee2e2', border: '#fca5a5', color: '#7f1d1d' },
+                warning: { bg: '#fef3c7', border: '#fcd34d', color: '#78350f' },
+                info: { bg: '#e0f2fe', border: '#93c5fd', color: '#0c4a6e' },
+                neutral: { bg: '#e2e8f0', border: '#cbd5f5', color: '#1e293b' },
+            };
+
+            function ensureRoot() {
+                if (root && document.body.contains(root)) {
+                    return root;
+                }
+
+                root = document.createElement('div');
+                root.id = rootId;
+                root.style.position = 'fixed';
+                root.style.top = '1.25rem';
+                root.style.right = '1.25rem';
+                root.style.display = 'flex';
+                root.style.flexDirection = 'column';
+                root.style.gap = '0.75rem';
+                root.style.zIndex = '60';
+                root.style.pointerEvents = 'none';
+
+                document.body.appendChild(root);
+                return root;
+            }
+
+            function applyTheme(element, type) {
+                const palette = themes[type] ?? themes.info;
+                element.style.backgroundColor = palette.bg;
+                element.style.border = `1px solid ${palette.border}`;
+                element.style.color = palette.color;
+            }
+
+            function showToast({ message, type = 'info', duration = 5000 } = {}) {
+                if (!message) {
+                    return;
+                }
+
+                const container = ensureRoot();
+                const toast = document.createElement('div');
+                toast.className = 'ponto-toast';
+                toast.style.padding = '0.9rem 1.1rem';
+                toast.style.borderRadius = '0.75rem';
+                toast.style.boxShadow = '0 15px 35px -20px rgba(15, 23, 42, 0.55)';
+                toast.style.fontSize = '0.875rem';
+                toast.style.fontWeight = '500';
+                toast.style.display = 'flex';
+                toast.style.alignItems = 'center';
+                toast.style.gap = '0.75rem';
+                toast.style.pointerEvents = 'auto';
+                toast.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-8px)';
+                toast.setAttribute('role', 'status');
+                toast.setAttribute('aria-live', 'polite');
+                toast.textContent = message;
+
+                applyTheme(toast, type);
+
+                container.appendChild(toast);
+
+                requestAnimationFrame(() => {
+                    toast.style.opacity = '1';
+                    toast.style.transform = 'translateY(0)';
+                });
+
+                const remove = () => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-8px)';
+                    toast.addEventListener('transitionend', () => {
+                        toast.remove();
+                        if (!container.hasChildNodes()) {
+                            container.style.display = 'none';
+                        }
+                    }, { once: true });
+                };
+
+                const timeout = setTimeout(remove, duration);
+
+                toast.addEventListener('mouseenter', () => clearTimeout(timeout));
+                toast.addEventListener('mouseleave', () => {
+                    setTimeout(remove, 1000);
+                }, { once: true });
+                toast.addEventListener('click', remove);
+
+                container.style.display = 'flex';
+            }
+
+            function handleNotification(payload) {
+                if (!payload) {
+                    return;
+                }
+
+                const { type = 'info', message = '', duration } = payload;
+                showToast({ type, message, duration: duration ?? 5000 });
+            }
+
+            window.pontoNotify = (type, message, options = {}) => {
+                handleNotification({ type, message, ...options });
+            };
+
+            const registerLivewire = () => {
+                if (window.Livewire?.on) {
+                    Livewire.on('notify', handleNotification);
+                } else {
+                    document.addEventListener('livewire:init', () => {
+                        Livewire.on('notify', handleNotification);
+                    });
+                }
+            };
+
+            registerLivewire();
+
+            window.addEventListener('ponto:toast', (event) => {
+                handleNotification(event.detail || {});
+            });
+
+            document.addEventListener('DOMContentLoaded', () => {
+                const banner = document.getElementById('session-status-banner');
+                if (banner) {
+                    const message = banner.dataset.sessionStatus;
+                    if (message) {
+                        showToast({ type: 'success', message, duration: 6000 });
+                        setTimeout(() => banner.remove(), 150);
+                    }
+                }
+            });
+        })();
+    </script>
     @stack('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', () => {

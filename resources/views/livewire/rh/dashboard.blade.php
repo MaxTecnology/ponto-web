@@ -5,21 +5,51 @@
             'fim' => $endDate,
             'busca' => $userSearch ?: null,
             'tipo' => $type,
-            'sem_geo' => $flagSemGeo ? '1' : null,
             'ip_novo' => $flagIpNovo ? '1' : null,
             'fingerprint_novo' => $flagFingerprintNovo ? '1' : null,
         ], fn ($value) => !is_null($value) && $value !== '');
+
+        $cards = [
+            [
+                'label' => 'Batidas filtradas',
+                'value' => number_format($summary['total'] ?? 0),
+                'description' => 'Total de registros após os filtros atuais.',
+            ],
+            [
+                'label' => 'Colaboradores únicos',
+                'value' => number_format($summary['unique_users'] ?? 0),
+                'description' => 'Usuários distintos que aparecem nos resultados.',
+            ],
+            [
+                'label' => '% com geolocalização',
+                'value' => ($summary['geo_percent'] ?? 100) . '%',
+                'description' => 'Batidas com geo válida dentro do período.',
+            ],
+            [
+                'label' => 'Alertas ativos',
+                'value' => number_format(($summary['ip_novo'] ?? 0) + ($summary['fingerprint_novo'] ?? 0)),
+                'description' => 'Soma de IPs e dispositivos inéditos.',
+            ],
+        ];
     @endphp
 
     <section class="app-card p-6 space-y-6">
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
                 <h2 class="app-section-heading">Dashboard de Batidas</h2>
-                <p class="app-section-subtitle">Filtre por período, colaborador, tipo ou flags antifraude.</p>
+                <p class="app-section-subtitle">Acompanhe registros, flags e tendências das batidas em tempo real.</p>
             </div>
-            <a href="{{ route('rh.export', $exportQuery) }}" class="app-button md:self-start">
-                Exportar CSV
-            </a>
+            <div class="flex gap-2">
+                <button type="button" wire:click="toggleFlag('ip_novo')" class="app-button-ghost text-sm px-3 py-1.5 @if($flagIpNovo) border-[rgb(var(--color-primary))] bg-[rgb(var(--color-primary))]/10 text-[rgb(var(--color-primary))] @endif">
+                    IP novo ({{ $summary['ip_novo'] ?? 0 }})
+                </button>
+                <button type="button" wire:click="toggleFlag('fingerprint_novo')" class="app-button-ghost text-sm px-3 py-1.5 @if($flagFingerprintNovo) border-rose-500 bg-rose-50 text-rose-600 @endif">
+                    Fingerprint novo ({{ $summary['fingerprint_novo'] ?? 0 }})
+                </button>
+                <a href="{{ route('rh.export', $exportQuery) }}" class="app-button md:self-start">
+                    Exportar CSV
+                </a>
+            </div>
         </div>
 
         <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -44,20 +74,25 @@
                     @endforeach
                 </select>
             </div>
-            <div class="flex items-center gap-3 rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-border))]/60 bg-[rgb(var(--color-surface))] px-4 py-3 shadow-sm md:col-span-1">
-                <input type="checkbox" id="flag-sem-geo" wire:model.live="flagSemGeo" class="app-checkbox">
-                <label for="flag-sem-geo" class="text-sm text-[rgb(var(--color-text))]">Sem geolocalização</label>
-            </div>
-            <div class="flex items-center gap-3 rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-border))]/60 bg-[rgb(var(--color-surface))] px-4 py-3 shadow-sm md:col-span-1">
-                <input type="checkbox" id="flag-ip" wire:model.live="flagIpNovo" class="app-checkbox">
-                <label for="flag-ip" class="text-sm text-[rgb(var(--color-text))]">IP novo (30 dias)</label>
-            </div>
-            <div class="flex items-center gap-3 rounded-[calc(var(--radius-sm))] border border-[rgb(var(--color-border))]/60 bg-[rgb(var(--color-surface))] px-4 py-3 shadow-sm md:col-span-1">
-                <input type="checkbox" id="flag-fingerprint" wire:model.live="flagFingerprintNovo" class="app-checkbox">
-                <label for="flag-fingerprint" class="text-sm text-[rgb(var(--color-text))]">Fingerprint novo (30 dias)</label>
-            </div>
         </div>
     </section>
+
+    <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        @foreach ($cards as $card)
+            <div class="app-card p-4">
+                <p class="text-xs uppercase tracking-wide text-[rgb(var(--color-muted))]">{{ $card['label'] }}</p>
+                <p class="mt-2 text-2xl font-semibold text-[rgb(var(--color-text))]">{{ $card['value'] }}</p>
+                <p class="mt-1 text-xs text-[rgb(var(--color-muted))]">{{ $card['description'] }}</p>
+            </div>
+        @endforeach
+    </section>
+
+    @if (($summary['sem_geo'] ?? 0) > 0)
+        <div class="app-alert-warning">
+            <p class="font-semibold">{{ $summary['sem_geo'] }} batidas antigas sem geolocalização.</p>
+            <p class="text-sm text-[rgb(var(--color-muted))]">Esses registros podem ser anteriores à regra de geo obrigatória; mantenha-os monitorados.</p>
+        </div>
+    @endif
 
     <section class="app-card p-0">
         <div class="flex flex-col gap-1 p-6 pb-0 sm:flex-row sm:items-baseline sm:justify-between">
@@ -65,7 +100,7 @@
                 <h3 class="app-section-heading text-base">Batidas registradas</h3>
                 <p class="app-section-subtitle">Exibindo {{ $punches->count() }} de {{ $punches->total() }} resultados.</p>
             </div>
-            <div class="text-xs text-[rgb(var(--color-muted))]">Última atualização: {{ now(config('app.timezone'))->format('d/m/Y H:i') }}</div>
+            <div class="text-xs text-[rgb(var(--color-muted))]">Atualizado em {{ now(config('app.timezone'))->format('d/m/Y H:i') }}</div>
         </div>
 
         <div class="app-table-wrapper">
@@ -121,8 +156,17 @@
                             $brands = isset($device['brands']) && is_array($device['brands'])
                                 ? implode(', ', array_slice($device['brands'], 0, 3))
                                 : null;
+
+                            $rowHighlight = '';
+                            if ($punch->sem_geo_flag) {
+                                $rowHighlight = 'bg-amber-50/70';
+                            } elseif ($punch->ip_novo_flag) {
+                                $rowHighlight = 'bg-sky-50/70';
+                            } elseif ($punch->fingerprint_novo_flag) {
+                                $rowHighlight = 'bg-rose-50/70';
+                            }
                         @endphp
-                        <tr>
+                        <tr class="{{ $rowHighlight }}">
                             <td class="px-4 py-3 align-top">
                                 <div class="font-semibold text-[rgb(var(--color-text))]">{{ $punch->user->name }}</div>
                                 <div class="text-xs text-[rgb(var(--color-muted))]">{{ $punch->user->email }}</div>
@@ -135,14 +179,14 @@
                                 <div class="text-xs text-[rgb(var(--color-muted))]">UTC {{ $punch->ts_server?->format('Y-m-d H:i:s') }}</div>
                             </td>
                             <td class="px-4 py-3 align-top text-sm text-[rgb(var(--color-text))]">
-                                <div class="font-medium">{{ $punch->ip }}</div>
+                                <div class="font-medium">{{ $punch->ip ?? '—' }}</div>
                                 @if ($geo && isset($geo['lat'], $geo['lon']))
                                     <div class="text-xs text-[rgb(var(--color-muted))]">Lat {{ $geo['lat'] }} · Lon {{ $geo['lon'] }}</div>
                                     <a href="https://www.google.com/maps?q={{ $geo['lat'] }},{{ $geo['lon'] }}" target="_blank" rel="noopener" class="mt-1 inline-flex items-center gap-1 text-xs font-semibold text-[rgb(var(--color-primary))] hover:underline">
                                         Ver no Maps
                                     </a>
                                 @else
-                                    <div class="text-xs text-[rgb(var(--color-muted))]">Sem geo</div>
+                                    <div class="text-xs text-[rgb(var(--color-muted))]">Geo obrigatória ausente</div>
                                 @endif
                             </td>
                             <td class="px-4 py-3 align-top text-xs text-[rgb(var(--color-muted))] space-y-1">
@@ -164,13 +208,13 @@
                             <td class="px-4 py-3 align-top">
                                 <div class="app-tag-list">
                                     @if ($punch->sem_geo_flag)
-                                        <span class="app-badge app-badge-warning uppercase">sem_geo</span>
+                                        <span class="app-badge app-badge-warning uppercase" title="Geolocalização ausente ou negada.">sem_geo</span>
                                     @endif
                                     @if ($punch->ip_novo_flag)
-                                        <span class="app-badge app-badge-info uppercase">ip_novo</span>
+                                        <span class="app-badge app-badge-info uppercase" title="IP inédito para o colaborador nos últimos 30 dias.">ip_novo</span>
                                     @endif
                                     @if ($punch->fingerprint_novo_flag)
-                                        <span class="app-badge app-badge-danger uppercase">fingerprint_novo</span>
+                                        <span class="app-badge app-badge-danger uppercase" title="Dispositivo/navegador novo em relação aos últimos 30 dias.">fingerprint_novo</span>
                                     @endif
                                     @if (! $punch->sem_geo_flag && ! $punch->ip_novo_flag && ! $punch->fingerprint_novo_flag)
                                         <span class="app-badge app-badge-neutral uppercase">ok</span>
@@ -182,7 +226,7 @@
                         <tr>
                             <td colspan="6" class="px-4 py-6 text-center">
                                 <div class="app-empty-state">
-                                    <span> Nenhuma batida encontrada com os filtros atuais. Ajuste os parâmetros acima para ampliar a busca. </span>
+                                    <span>Nenhuma batida encontrada com os filtros atuais. Ajuste os parâmetros acima para ampliar a busca.</span>
                                 </div>
                             </td>
                         </tr>

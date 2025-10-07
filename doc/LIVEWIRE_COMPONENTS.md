@@ -23,19 +23,22 @@
 - Form para **Solicitar Ajuste** (cria registro pendente).
 
 ## Rh\Dashboard
-- Filtros: período (data início/fim), usuário (search), tipo, flags (`sem_geo`, `ip_novo`, `fingerprint_novo`).
-- Tabela paginada: usuário, tipo, `ts_local`, IP, resumo device/geo, flags.
-- Ação **Exportar CSV** mantendo filtros.
+- Filtros: período (data início/fim), usuário (search), tipo + toggles rápidos para `ip_novo` e `fingerprint_novo`.
+- Mostra banners/resumo com contagem de batidas, colaboradores, % geo e alertas ativos.
+- Tabela paginada: usuário, tipo, `ts_local`, IP, resumo device/geo, flags (incluindo `sem_geo` para histórico).
+- Ação **Exportar CSV** mantendo filtros aplicados.
 
 ## Rh\Ajustes
-- Lista `PENDENTE`.
+- Cards com métricas (pendentes/aprovados/rejeitados, tempo médio).
+- Lista `PENDENTE` com destaque para seleção, formulário inline e histórico do ajuste.
 - Aprovar/Rejeitar com comentário (gravar `approver_id`, `decided_at`, `audit`).
+- Histórico recente das decisões (aprovados/rejeitados) com comentário final e executor.
 
 ## Rh\Fechamento
-- Selecionar período.
-- Mostrar pendências (ajustes pendentes, dias sem saída).
-- Botão **Fechar período** (snapshot lógico).
-- Botão **Exportar CSV**.
+- Selecionar período, ver cards com ajustes pendentes, dias sem saída, período e último fechamento.
+- Pendências detalhadas (dias sem saída) com link rápido para dashboard/ajustes.
+- Timeline com histórico de fechamentos anteriores.
+- Botão **Fechar período** (snapshot lógico) e exportação CSV.
 
 ## Flags automáticas (lógica básica)
 - `ip_novo`: comparar IP atual com IPs do mesmo usuário nos últimos 30 dias.

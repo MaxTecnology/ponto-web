@@ -14,4 +14,5 @@
 - `GET /rh/export` → export CSV (respeita filtros atuais). `can:view-rh`
 
 ## Admin simples
-- Página para trocar `role` de usuários (form básico). Proteger com `role=admin`.
+- `GET /admin/users` → Livewire `Admin\UserRoles` (CRUD de usuários + config `min_interval_minutes`). Proteger com `role=admin` (gate `manage-roles`).
+- Rotas visitantes e fallback redirecionam usuário autenticado conforme perfil (admin → `/admin/users`, RH → `/rh/ponto`, colaborador → `/ponto`).

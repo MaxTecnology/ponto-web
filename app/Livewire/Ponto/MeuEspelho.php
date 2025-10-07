@@ -6,11 +6,8 @@ use App\Models\AdjustRequest;
 use App\Support\Timezone;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Livewire\Attributes\Validate;
 use Livewire\Component;
 
@@ -21,6 +18,27 @@ class MeuEspelho extends Component
     public array $report = [];
 
     public int $totalSeconds = 0;
+
+    public array $monthStats = [
+        'totals_by_type' => [],
+        'sem_geo_days' => 0,
+        'ip_alert_days' => 0,
+        'fingerprint_alert_days' => 0,
+    ];
+
+    public array $alertDays = [
+        'sem_geo' => [],
+        'ip_novo' => [],
+        'fingerprint_novo' => [],
+    ];
+
+    public array $alertSummaries = [
+        'sem_geo' => ['total' => 0, 'sample' => [], 'remaining' => 0],
+        'ip_novo' => ['total' => 0, 'sample' => [], 'remaining' => 0],
+        'fingerprint_novo' => ['total' => 0, 'sample' => [], 'remaining' => 0],
+    ];
+
+    public string $ajusteStatusFiltro = 'todos';
 
     /**
      * @var array<string, string>
@@ -44,9 +62,7 @@ class MeuEspelho extends Component
     #[Validate('required|string|min:5|max:1000')]
     public string $ajusteMotivo = '';
 
-    public ?string $flashMessage = null;
-
-    /** @var \Illuminate\Support\Collection<int, AdjustRequest> */
+    /** @var \Illuminate\Support\Collection<int, AdjustRequest>|null */
     public $recentRequests;
 
     public ?int $editingRequestId = null;
@@ -65,13 +81,16 @@ class MeuEspelho extends Component
             'availableMonths' => $this->availableMonths(),
             'totalFormatado' => $this->formatDuration($this->totalSeconds),
             'tipoLabels' => $this->tipoLabels,
-            'flashMessage' => $this->flashMessage,
         ]);
+    }
+
+    private function notify(string $type, string $message): void
+    {
+        $this->dispatch('notify', type: $type, message: $message);
     }
 
     public function updatedMonth(): void
     {
-        $this->flashMessage = null;
         $this->loadReport();
     }
 
@@ -116,8 +135,8 @@ class MeuEspelho extends Component
                 'audit' => $audit,
             ]);
 
-            session()->flash('status', 'Solicitação de ajuste atualizada.');
-            $this->flashMessage = 'Solicitação de ajuste atualizada.';
+            $message = 'Solicitação de ajuste atualizada.';
+            $this->notify('success', $message);
         } else {
             AdjustRequest::create([
                 'user_id' => $user->getAuthIdentifier(),
@@ -127,8 +146,8 @@ class MeuEspelho extends Component
                 'reason' => $this->ajusteMotivo,
             ]);
 
-            session()->flash('status', 'Solicitação de ajuste enviada para aprovação.');
-            $this->flashMessage = 'Solicitação de ajuste enviada para aprovação.';
+            $message = 'Solicitação de ajuste enviada para aprovação.';
+            $this->notify('success', $message);
         }
 
         $this->reset(['ajusteInicio', 'ajusteFim', 'ajusteMotivo', 'editingRequestId']);
@@ -155,6 +174,15 @@ class MeuEspelho extends Component
         $fingerprintLastSeen = [];
         $days = [];
         $totalSeconds = 0;
+        $totalsByType = [
+            'IN' => 0,
+            'OUT' => 0,
+            'BREAK_IN' => 0,
+            'BREAK_OUT' => 0,
+        ];
+        $semGeoDays = [];
+        $ipAlertDays = [];
+        $fingerprintAlertDays = [];
 
         foreach ($punches as $punch) {
             if (! $punch->ts_server) {
@@ -197,20 +225,66 @@ class MeuEspelho extends Component
                     'fingerprint_novo' => $fingerprintNovo,
                 ],
             ];
+
+            if (array_key_exists($punch->type, $totalsByType)) {
+                $totalsByType[$punch->type]++;
+            } else {
+                $totalsByType[$punch->type] = 1;
+            }
         }
 
         ksort($days);
 
         foreach ($days as &$day) {
             $day['worked_seconds'] = $this->calculateWorkedSeconds($day['punches']);
+
+            $flagSummary = [
+                'sem_geo' => false,
+                'ip_novo' => false,
+                'fingerprint_novo' => false,
+            ];
+
             foreach ($day['punches'] as &$punch) {
-                unset($punch['flags']);
+                $flagSummary['sem_geo'] = $flagSummary['sem_geo'] || ($punch['flags']['sem_geo'] ?? false);
+                $flagSummary['ip_novo'] = $flagSummary['ip_novo'] || ($punch['flags']['ip_novo'] ?? false);
+                $flagSummary['fingerprint_novo'] = $flagSummary['fingerprint_novo'] || ($punch['flags']['fingerprint_novo'] ?? false);
             }
+
+            $day['flag_summary'] = $flagSummary;
+
+            if ($flagSummary['sem_geo']) {
+                $semGeoDays[] = $day['date'];
+            }
+
+            if ($flagSummary['ip_novo']) {
+                $ipAlertDays[] = $day['date'];
+            }
+
+            if ($flagSummary['fingerprint_novo']) {
+                $fingerprintAlertDays[] = $day['date'];
+            }
+
             $totalSeconds += $day['worked_seconds'];
         }
 
         $this->report = $days;
         $this->totalSeconds = $totalSeconds;
+        $this->alertDays = [
+            'sem_geo' => array_values(array_unique($semGeoDays)),
+            'ip_novo' => array_values(array_unique($ipAlertDays)),
+            'fingerprint_novo' => array_values(array_unique($fingerprintAlertDays)),
+        ];
+        $this->monthStats = [
+            'totals_by_type' => $totalsByType,
+            'sem_geo_days' => count($this->alertDays['sem_geo']),
+            'ip_alert_days' => count($this->alertDays['ip_novo']),
+            'fingerprint_alert_days' => count($this->alertDays['fingerprint_novo']),
+        ];
+        $this->alertSummaries = [
+            'sem_geo' => $this->summarizeAlertDays($this->alertDays['sem_geo']),
+            'ip_novo' => $this->summarizeAlertDays($this->alertDays['ip_novo']),
+            'fingerprint_novo' => $this->summarizeAlertDays($this->alertDays['fingerprint_novo']),
+        ];
 
         $this->loadSolicitacoesRecentes();
     }
@@ -228,7 +302,6 @@ class MeuEspelho extends Component
                 $monthRef->endOfMonth()->format('Y-m-d'),
             ])
             ->orderByDesc('created_at')
-            ->take(10)
             ->get();
     }
 
@@ -247,7 +320,7 @@ class MeuEspelho extends Component
         $this->ajusteInicio = $request->from_ts ? CarbonImmutable::parse($request->from_ts)->setTimezone($tz)->format('H:i') : null;
         $this->ajusteFim = $request->to_ts ? CarbonImmutable::parse($request->to_ts)->setTimezone($tz)->format('H:i') : null;
         $this->ajusteMotivo = $request->reason;
-        $this->flashMessage = 'Editando solicitação pendente. Faça os ajustes e salve.';
+        $this->notify('info', 'Editando solicitação pendente. Faça os ajustes e salve.');
     }
 
     public function cancelarEdicao(): void
@@ -256,7 +329,6 @@ class MeuEspelho extends Component
 
         $this->reset(['editingRequestId', 'ajusteInicio', 'ajusteFim', 'ajusteMotivo']);
         $this->ajusteData = CarbonImmutable::now($tz)->format('Y-m-d');
-        $this->flashMessage = null;
     }
 
     public function removerSolicitacao(int $requestId): void
@@ -274,10 +346,22 @@ class MeuEspelho extends Component
             $this->cancelarEdicao();
         }
 
-        session()->flash('status', 'Solicitação removida.');
-        $this->flashMessage = 'Solicitação removida.';
+        $this->notify('success', 'Solicitação removida.');
 
         $this->loadSolicitacoesRecentes();
+    }
+
+    public function getSolicitacoesFiltradasProperty()
+    {
+        if (! $this->recentRequests) {
+            return collect();
+        }
+
+        $status = strtoupper($this->ajusteStatusFiltro);
+
+        return $this->recentRequests
+            ->when($status !== 'TODOS', fn ($collection) => $collection->where('status', $status))
+            ->values();
     }
 
     private function calculateWorkedSeconds(array $punches): int
@@ -316,6 +400,30 @@ class MeuEspelho extends Component
         $minutes = intdiv($seconds % 3600, 60);
 
         return sprintf('%02d:%02d', $hours, $minutes);
+    }
+
+    private function summarizeAlertDays(array $dates, int $limit = 5): array
+    {
+        $unique = array_values(array_unique($dates));
+        $sample = array_slice($unique, 0, $limit);
+
+        $formattedSample = array_map(function (string $date) {
+            try {
+                $carbon = CarbonImmutable::createFromFormat('Y-m-d', $date, config('app.timezone'));
+            } catch (\Throwable $exception) {
+                return $date;
+            }
+
+            return Str::ucfirst($carbon->locale(app()->getLocale())->translatedFormat('d \d\e F'));
+        }, $sample);
+
+        $remaining = max(count($unique) - count($sample), 0);
+
+        return [
+            'total' => count($unique),
+            'sample' => $formattedSample,
+            'remaining' => $remaining,
+        ];
     }
 
     private function availableMonths(): array

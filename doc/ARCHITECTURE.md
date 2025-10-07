@@ -1,11 +1,11 @@
 # Arquitetura e Convenções
 
 ## Stack
-- Laravel 11 (PHP 8.3), Blade + **Livewire 3**.
-- **MySQL** via Laravel Sail (serviço `mysql`, porta 3306).
+- Laravel 12 (PHP 8.3+), Blade + **Livewire 3**.
+- **MySQL** via Laravel Sail ou Docker Compose (serviço `mysql`, porta 3306).
 - **Redis** apenas provisionado (não usar no MVP).
-- **Laravel Breeze** para autenticação (e-mail/senha). Manter 2FA preparado, porém desativado.
-- Tailwind (o que vier com o Breeze).
+- Autenticação padrão Laravel (login/logout e middleware `auth`); opção de gerar scaffold Breeze somente para ambientes que precisarem, mas não é requisito.
+- Tailwind (via Vite, configuração padrão do projeto).
 
 ## RBAC
 - Coluna `role` em `users` com valores: `colaborador`, `rh_manager`, `admin`.
@@ -38,7 +38,13 @@ tests/Feature/
 ```
 
 ## Dependências a instalar
-- `composer require livewire/livewire`
-- `composer require laravel/breeze --dev` + `php artisan breeze:install blade`
-- `npm install && npm run build` (ou `npm run dev`)
+- `composer install` (já inclui `livewire/livewire` e ferramentas dev como Breeze opcional).
+- `npm install && npm run build` (ou `npm run dev`).
 - Garantir `.env` com `DB_CONNECTION=mysql` e fuso `APP_TIMEZONE=America/Maceio`.
+
+## Painel Administrativo
+- Rota `/admin/users` com Livewire exibindo:
+  - Cadastro de usuários (nome, e-mail, senha temporária, role).
+  - Edição de nome/e-mail/role.
+  - Desativação/reativação (`deactivated_at`).
+  - Configurações operacionais (`settings.key = ponto`) como intervalo mínimo entre batidas.

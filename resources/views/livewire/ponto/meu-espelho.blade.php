@@ -1,16 +1,22 @@
 <div class="space-y-6">
-    <section class="app-card flex flex-col justify-between gap-4 p-6 sm:flex-row sm:items-center">
-        <div>
+    <section class="app-card flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div class="space-y-1">
             <h2 class="text-lg font-semibold text-[rgb(var(--color-text))]">Espelho de Ponto</h2>
             <p class="text-sm text-[rgb(var(--color-muted))]">Selecione o mês para visualizar suas batidas convertidas para horário local.</p>
         </div>
-        <div class="flex items-center gap-3">
-            <label for="mes" class="app-label">Mês</label>
-            <select id="mes" wire:model="month" class="app-input w-48">
-                @foreach ($availableMonths as $value => $label)
-                    <option value="{{ $value }}">{{ $label }}</option>
-                @endforeach
-            </select>
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div class="flex items-center gap-3">
+                <label for="mes" class="app-label">Mês</label>
+                <select id="mes" wire:model.live="month" class="app-input w-48">
+                    @foreach ($availableMonths as $value => $label)
+                        <option value="{{ $value }}">{{ $label }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex gap-2">
+                <button type="button" class="app-button" data-scroll-to="solicitar-ajuste">Solicitar ajuste</button>
+                <button type="button" class="app-button-secondary" data-scroll-to="minhas-solicitacoes">Minhas solicitações</button>
+            </div>
         </div>
     </section>
 
@@ -22,6 +28,72 @@
             </div>
         </div>
 
+        @php
+            $totalsByType = $monthStats['totals_by_type'] ?? [];
+        @endphp
+
+        <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            @foreach ($totalsByType as $type => $count)
+                <div class="rounded-lg border border-[rgb(var(--color-border))]/60 bg-[rgb(var(--color-surface-alt))] px-3 py-2">
+                    <p class="text-xs uppercase tracking-wide text-[rgb(var(--color-muted))]">{{ $tipoLabels[$type] ?? $type }}</p>
+                    <p class="text-xl font-semibold text-[rgb(var(--color-text))]">{{ $count }}</p>
+                </div>
+            @endforeach
+        </div>
+
+        @php
+            $semGeoSummary = $alertSummaries['sem_geo'] ?? ['total' => 0, 'sample' => [], 'remaining' => 0];
+            $ipAlertSummary = $alertSummaries['ip_novo'] ?? ['total' => 0, 'sample' => [], 'remaining' => 0];
+            $fingerprintSummary = $alertSummaries['fingerprint_novo'] ?? ['total' => 0, 'sample' => [], 'remaining' => 0];
+        @endphp
+
+        @if (($semGeoSummary['total'] ?? 0) > 0)
+            <div class="mt-4 app-alert-warning">
+                <p class="font-semibold">
+                    {{ $semGeoSummary['total'] }}
+                    {{ \Illuminate\Support\Str::plural('dia', $semGeoSummary['total']) }}
+                    com batidas sem geolocalização.
+                </p>
+                <p class="text-sm text-[rgb(var(--color-muted))]">
+                    Verifique se a permissão de localização está ativa. Dias:
+                    {{ implode(', ', $semGeoSummary['sample'] ?? []) }}
+                    @if (($semGeoSummary['remaining'] ?? 0) > 0)
+                        e {{ $semGeoSummary['remaining'] }} outros
+                    @endif
+                    .
+                </p>
+            </div>
+        @endif
+
+        @if (($ipAlertSummary['total'] ?? 0) > 0 || ($fingerprintSummary['total'] ?? 0) > 0)
+            <div class="mt-3 app-alert-info">
+                <p class="font-semibold">Alterações detectadas.</p>
+                @if (($ipAlertSummary['total'] ?? 0) > 0)
+                    <p class="text-sm text-[rgb(var(--color-muted))]">
+                        Novos endereços IP em {{ $ipAlertSummary['total'] }}
+                        {{ \Illuminate\Support\Str::plural('dia', $ipAlertSummary['total']) }}
+                        (ex.: {{ implode(', ', $ipAlertSummary['sample'] ?? []) }}
+                        @if (($ipAlertSummary['remaining'] ?? 0) > 0)
+                            e {{ $ipAlertSummary['remaining'] }} outros
+                        @endif
+                        ).
+                    </p>
+                @endif
+                @if (($fingerprintSummary['total'] ?? 0) > 0)
+                    <p class="text-sm text-[rgb(var(--color-muted))]">
+                        Novos dispositivos/navegadores em {{ $fingerprintSummary['total'] }}
+                        {{ \Illuminate\Support\Str::plural('dia', $fingerprintSummary['total']) }}
+                        (ex.: {{ implode(', ', $fingerprintSummary['sample'] ?? []) }}
+                        @if (($fingerprintSummary['remaining'] ?? 0) > 0)
+                            e {{ $fingerprintSummary['remaining'] }} outros
+                        @endif
+                        ).
+                    </p>
+                @endif
+                <p class="text-xs text-[rgb(var(--color-muted))]">Confirme se as mudanças são esperadas e, em caso de dúvidas, contate o RH.</p>
+            </div>
+        @endif
+
         <div class="mt-6 space-y-4">
             @forelse ($report as $day)
                 <div class="app-card-muted border border-[rgb(var(--color-border))]/50 p-4">
@@ -32,6 +104,17 @@
                             </button>
                             <p class="text-xs uppercase tracking-wide text-[rgb(var(--color-muted))]">{{ $this->formatDuration($day['worked_seconds']) }} horas trabalhadas</p>
                         </div>
+                        <div class="flex flex-wrap gap-2">
+                            @if ($day['flag_summary']['sem_geo'] ?? false)
+                                <span class="app-badge app-badge-warning text-xs uppercase" title="Existe batida sem localização neste dia. Oriente o colaborador a habilitar o acesso à localização.">Alerta: sem GEO</span>
+                            @endif
+                            @if ($day['flag_summary']['ip_novo'] ?? false)
+                                <span class="app-badge app-badge-neutral text-xs uppercase" title="Foi detectado IP diferente dos últimos 30 dias. Verifique se é um acesso legítimo.">IP novo</span>
+                            @endif
+                            @if ($day['flag_summary']['fingerprint_novo'] ?? false)
+                                <span class="app-badge app-badge-neutral text-xs uppercase" title="Foi detectado dispositivo/navegador diferente dos últimos 30 dias.">Dispositivo novo</span>
+                            @endif
+                        </div>
                     </div>
 
                     <div class="mt-4 overflow-x-auto">
@@ -41,6 +124,7 @@
                                     <th class="px-3 py-2 text-left font-medium text-[rgb(var(--color-muted))]">Tipo</th>
                                     <th class="px-3 py-2 text-left font-medium text-[rgb(var(--color-muted))]">Horário (local)</th>
                                     <th class="px-3 py-2 text-left font-medium text-[rgb(var(--color-muted))]">Observação</th>
+                                    <th class="px-3 py-2 text-left font-medium text-[rgb(var(--color-muted))]">Alertas</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-[rgb(var(--color-border))]/60">
@@ -49,6 +133,25 @@
                                         <td class="px-3 py-2 font-medium text-[rgb(var(--color-text))]">{{ $tipoLabels[$punch['type']] ?? $punch['type'] }}</td>
                                         <td class="px-3 py-2 text-[rgb(var(--color-muted))]">{{ $punch['ts_local']->format('H:i') }}</td>
                                         <td class="px-3 py-2 text-[rgb(var(--color-muted))]">{{ $punch['observacao'] ?? '—' }}</td>
+                                        <td class="px-3 py-2">
+                                            <div class="flex flex-wrap gap-1">
+                                                @php
+                                                    $flags = $punch['flags'] ?? [];
+                                                @endphp
+                                                @if (!empty($flags['sem_geo']))
+                                                    <span class="app-badge app-badge-warning text-xs uppercase" title="Localização ausente. Oriente o colaborador a permitir o uso de GPS/localização.">Sem GEO</span>
+                                                @endif
+                                                @if (!empty($flags['ip_novo']))
+                                                    <span class="app-badge app-badge-neutral text-xs uppercase" title="IP não visto nos últimos 30 dias para este colaborador.">IP novo</span>
+                                                @endif
+                                                @if (!empty($flags['fingerprint_novo']))
+                                                    <span class="app-badge app-badge-neutral text-xs uppercase" title="Dispositivo/navegador diferente dos últimos 30 dias.">Dispositivo novo</span>
+                                                @endif
+                                                @if (empty($flags['sem_geo']) && empty($flags['ip_novo']) && empty($flags['fingerprint_novo']))
+                                                    <span class="text-xs text-[rgb(var(--color-muted))]">—</span>
+                                                @endif
+                                            </div>
+                                        </td>
                                     </tr>
                                 @endforeach
                             </tbody>
@@ -61,14 +164,11 @@
         </div>
     </section>
 
-    <section class="app-card p-6 space-y-4">
+    <section id="solicitar-ajuste" class="app-card p-6 space-y-4">
         <div>
             <h3 class="app-section-heading text-base">Solicitar Ajuste</h3>
             <p class="app-section-subtitle">Peça ao RH para corrigir horários ausentes ou equivocadas deste mês.</p>
         </div>
-        @if ($flashMessage)
-            <div class="app-alert-success">{{ $flashMessage }}</div>
-        @endif
         <form wire:submit.prevent="solicitarAjuste" class="grid gap-4 sm:grid-cols-2">
             <div class="space-y-1">
                 <label for="ajuste-data" class="app-label">Data</label>
@@ -109,12 +209,26 @@
         </form>
     </section>
 
-    <section class="app-card p-6 space-y-4">
+    <section id="minhas-solicitacoes" class="app-card p-6 space-y-4">
         <div>
             <h3 class="app-section-heading text-base">Minhas Solicitações Neste Mês</h3>
             <p class="app-section-subtitle">Acompanhe o status e comentários do RH para cada ajuste solicitado.</p>
         </div>
-        @if ($recentRequests && $recentRequests->isNotEmpty())
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div class="flex items-center gap-2">
+                <label for="filtro-status" class="app-label">Filtrar por status</label>
+                <select id="filtro-status" wire:model.live="ajusteStatusFiltro" class="app-input w-48">
+                    <option value="todos">Todos</option>
+                    <option value="pendente">Pendentes</option>
+                    <option value="aprovado">Aprovados</option>
+                    <option value="rejeitado">Rejeitados</option>
+                </select>
+            </div>
+        </div>
+        @php
+            $solicitacoesFiltradas = $this->solicitacoesFiltradas;
+        @endphp
+        @if ($solicitacoesFiltradas->isNotEmpty())
             <div class="app-table-wrapper">
                 <table class="app-table">
                     <thead>
@@ -128,7 +242,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-[rgb(var(--color-border))]/50">
-                        @foreach ($recentRequests as $request)
+                        @foreach ($solicitacoesFiltradas as $request)
                             @php
                                 $statusBadge = [
                                     'PENDENTE' => 'app-badge-warning',
@@ -176,8 +290,42 @@
             </div>
         @else
             <div class="app-empty-state">
-                <span>Nenhuma solicitação registrada neste mês.</span>
+                <span>Nenhuma solicitação encontrada para o filtro selecionado.</span>
             </div>
         @endif
     </section>
 </div>
+
+@push('scripts')
+    <script>
+        (() => {
+            const initScrollButtons = () => {
+                document.querySelectorAll('[data-scroll-to]').forEach((button) => {
+                    if (button.dataset.bound === 'true') {
+                        return;
+                    }
+
+                    button.dataset.bound = 'true';
+                    button.addEventListener('click', (event) => {
+                        event.preventDefault();
+
+                        const targetId = button.dataset.scrollTo;
+                        const target = document.getElementById(targetId);
+
+                        if (target) {
+                            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    });
+                });
+            };
+
+            if (document.readyState !== 'loading') {
+                initScrollButtons();
+            } else {
+                document.addEventListener('DOMContentLoaded', initScrollButtons, { once: true });
+            }
+
+            document.addEventListener('livewire:navigated', initScrollButtons);
+        })();
+    </script>
+@endpush
