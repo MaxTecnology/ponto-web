@@ -5,12 +5,14 @@ FROM composer:2 AS vendor
 WORKDIR /var/www/html
 
 COPY composer.json composer.lock ./
+ENV COMPOSER_ALLOW_SUPERUSER=1
 
 RUN composer install \
     --no-dev \
     --no-interaction \
     --prefer-dist \
     --no-progress \
+    --no-scripts \
     --optimize-autoloader
 
 COPY . .
