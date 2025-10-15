@@ -38,7 +38,7 @@
                 <button
                     wire:click="fecharPeriodo"
                     class="app-button-success"
-                    @disabled(! $checklistCompleto)
+                    @if (! $checklistCompleto) disabled @endif
                     wire:loading.attr="disabled"
                 >
                     Fechar período
@@ -61,17 +61,14 @@
             @foreach ($checklistLabels as $key => $item)
                 @php
                     $checked = $checklist[$key] ?? false;
+                    $buttonClasses = $checked
+                        ? 'border-emerald-400 bg-emerald-50 text-emerald-900'
+                        : 'border-[rgb(var(--color-border))]/60 bg-[rgb(var(--color-surface))] text-[rgb(var(--color-text))] hover:border-[rgb(var(--color-primary))]';
                 @endphp
                 <button
                     type="button"
                     wire:click="toggleChecklist('{{ $key }}')"
-                    class="flex flex-col items-start gap-2 rounded-[var(--radius-md)] border px-4 py-3 text-left shadow-sm transition
-                        @if($checked)
-                            border-emerald-400 bg-emerald-50 text-emerald-900
-                        @else
-                            border-[rgb(var(--color-border))]/60 bg-[rgb(var(--color-surface))] text-[rgb(var(--color-text))] hover:border-[rgb(var(--color-primary))]
-                        @endif
-                    "
+                    class="flex flex-col items-start gap-2 rounded-[var(--radius-md)] border px-4 py-3 text-left shadow-sm transition {{ $buttonClasses }}"
                 >
                     <span class="text-sm font-semibold">{{ $item['title'] }}</span>
                     <span class="text-xs text-[rgb(var(--color-muted))]">{{ $item['description'] }}</span>

@@ -39,11 +39,15 @@
                 <h2 class="app-section-heading">Dashboard de Batidas</h2>
                 <p class="app-section-subtitle">Acompanhe registros, flags e tendências das batidas em tempo real.</p>
             </div>
+            @php
+                $ipNovoClasses = $flagIpNovo ? 'border-[rgb(var(--color-primary))] bg-[rgb(var(--color-primary))]/10 text-[rgb(var(--color-primary))]' : '';
+                $fingerprintClasses = $flagFingerprintNovo ? 'border-rose-500 bg-rose-50 text-rose-600' : '';
+            @endphp
             <div class="flex gap-2">
-                <button type="button" wire:click="toggleFlag('ip_novo')" class="app-button-ghost text-sm px-3 py-1.5 @if($flagIpNovo) border-[rgb(var(--color-primary))] bg-[rgb(var(--color-primary))]/10 text-[rgb(var(--color-primary))] @endif">
+                <button type="button" wire:click="toggleFlag('ip_novo')" class="app-button-ghost text-sm px-3 py-1.5 {{ $ipNovoClasses }}">
                     IP novo ({{ $summary['ip_novo'] ?? 0 }})
                 </button>
-                <button type="button" wire:click="toggleFlag('fingerprint_novo')" class="app-button-ghost text-sm px-3 py-1.5 @if($flagFingerprintNovo) border-rose-500 bg-rose-50 text-rose-600 @endif">
+                <button type="button" wire:click="toggleFlag('fingerprint_novo')" class="app-button-ghost text-sm px-3 py-1.5 {{ $fingerprintClasses }}">
                     Fingerprint novo ({{ $summary['fingerprint_novo'] ?? 0 }})
                 </button>
                 <a href="{{ route('rh.export', $exportQuery) }}" class="app-button md:self-start">
