@@ -31,7 +31,7 @@ if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
 fi
 
 if [ "$1" = "php" ] && [ "$2" = "artisan" ]; then
-    shift
+    shift 2
     exec su-exec www-data php artisan "$@"
 fi
 
