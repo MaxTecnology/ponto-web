@@ -1,0 +1,68 @@
+services:
+  app:
+    build:
+      context: .
+      target: app
+    image: ponto-web-app:latest
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      APP_CACHE_CONFIG: "true"
+    volumes:
+      - storage:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ponto
+
+  web:
+    build:
+      context: .
+      target: web
+    image: ponto-web-web:latest
+    restart: unless-stopped
+    depends_on:
+      - app
+    volumes:
+      - storage:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
+    ports:
+      - "8080:80"
+    networks:
+      - ponto
+
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-secret}
+      MYSQL_DATABASE: ${DB_DATABASE:-ponto}
+      MYSQL_USER: ${DB_USERNAME:-ponto}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret123}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: >-
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ponto
+
+volumes:
+  storage:
+  bootstrap-cache:
+  mysql-data:
+
+networks:
+  ponto:
+    driver: bridge

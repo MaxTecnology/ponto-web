@@ -38,72 +38,47 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 
 ---
 
-## 2) Obter o código e configurar `.env`
+## 2) Obter o código e preparar variáveis de ambiente
 ```bash
-# Clonar repo
 git clone <SEU_REPO> ponto-web
 cd ponto-web
 
-# Copiar env base
-cp .env .env.prod
-nano .env.prod
+cp .env.docker.example .env.docker
+nano .env.docker
 ```
 
-**Exemplo de .env de produção (essencial):**
-```env
-APP_NAME="Ponto Web"
-APP_ENV=production
-APP_KEY=base64:GERAR_COM_ARTISAN
-APP_DEBUG=false
-APP_URL=https://ponto.dominio.com
-APP_TIMEZONE=America/Maceio
+**Campos importantes em `.env.docker`:**
+- `APP_URL`, `APP_NAME`, `APP_BRAND`, `APP_LOGO` — apontam o subdomínio público e a identidade visual.
+- `DB_*` — credenciais usadas pelo container MySQL interno.
+- `RUN_MIGRATIONS` — deixe `true` no primeiro deploy para rodar `php artisan migrate --force` automaticamente.
 
-LOG_CHANNEL=daily
-LOG_LEVEL=info
-
-# Banco: container mysql interno da compose
-DB_CONNECTION=mysql
-DB_HOST=mysql
-DB_PORT=3306
-DB_DATABASE=ponto
-DB_USERNAME=ponto
-DB_PASSWORD=senha_forte
-
-# Sessão/cache (simples por enquanto)
-SESSION_DRIVER=database
-CACHE_DRIVER=file
-
-# Queue (reservado — pode deixar sync no MVP)
-QUEUE_CONNECTION=sync
-
-# CSRF/Proxy (se estiver atrás de proxy)
-TRUSTED_PROXIES=*
-```
-
-> Gere a chave do app depois que os containers subirem: `php artisan key:generate`.
+> Gere uma `APP_KEY` antes de subir (após o primeiro `docker compose -f docker-compose.prod.yml build`):
+> `docker compose -f docker-compose.prod.yml run --rm app php artisan key:generate --show` — copie o valor para `.env.docker`.
 
 ---
 
-## 3) Compose de produção
-Você pode **reusar o Sail** ajustando o `docker-compose.yml` ou criar um `docker-compose.prod.yml`. Padrão mínimo:
+## 3) Compose de produção pronto para uso
+- `docker-compose.prod.yml` orquestra três serviços: `app` (PHP-FPM), `web` (Nginx) e `mysql`.
+- O `Dockerfile` multi-stage compila assets (Vite) e instala dependências PHP durante o build.
+- Volumes nomeados preservam `storage/`, `bootstrap/cache` e os dados do banco mesmo após recriações de containers.
 
-- **laravel.test**: Nginx + PHP-FPM (como no Sail).
-- **mysql**: com volume e **SEM** publicar a porta 3306.
-- **redis**: opcional no MVP.
-- Volumes para `storage/` e `mysql`.
-
-> Se usar o arquivo do Sail, remova `ports` públicos do MySQL. Exponha só o web (porta 80 interna).
-
+Build + subida:
 ```bash
-# Subir em segundo plano
-docker compose up -d
-# ou se usar arquivo prod: docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
 ```
+
+Logs iniciais (úteis para acompanhar criação de APP_KEY ou migrations):
+```bash
+docker compose -f docker-compose.prod.yml logs -f app
+```
+
+> O entrypoint executa cache de config (`config:cache`, `route:cache`, `view:cache`) e roda migrations se `RUN_MIGRATIONS=true`.
 
 ---
 
 ## 4) Nginx (host) como reverse proxy + TLS
-Instale Nginx no host e crie um `server` apontando para **laravel.test:80** (rede do Docker).
+Instale Nginx no host e crie um `server` apontando para o serviço `web` exposto na porta 8080 do host.
 
 **/etc/nginx/sites-available/ponto.conf** (resumo):
 ```
@@ -115,7 +90,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_pass http://127.0.0.1:8080; # se mapear laravel.test->8080
+        proxy_pass http://127.0.0.1:8080; # porta exposta pelo serviço web do compose
     }
 }
 ```
@@ -137,14 +112,21 @@ sudo certbot --nginx -d ponto.dominio.com --redirect -m seu@email -n --agree-tos
 
 ---
 
-## 5) Inicialização do app (dentro do container)
+## 5) Pós-subida (ajustes rápidos)
+Na maioria dos casos o entrypoint já terá executado os passos abaixo, mas vale validar:
+
 ```bash
-# Executar comandos via compose
-docker compose exec -T laravel.test php artisan key:generate --force
-docker compose exec -T laravel.test php artisan storage:link
-docker compose exec -T laravel.test php artisan migrate --force
-# (opcional) docker compose exec -T laravel.test php artisan db:seed --force
-docker compose exec -T laravel.test php artisan optimize
+# Opcional: imprimir uma nova chave (copie para .env.docker se precisar rotacionar)
+docker compose -f docker-compose.prod.yml exec app php artisan key:generate --show
+
+# Garantir symlink do storage
+docker compose -f docker-compose.prod.yml exec app php artisan storage:link
+
+# Rodar migrations manualmente se RUN_MIGRATIONS=false
+docker compose -f docker-compose.prod.yml exec app php artisan migrate --force
+
+# Seeds adicionais
+docker compose -f docker-compose.prod.yml exec app php artisan db:seed --force
 ```
 
 ---
@@ -153,7 +135,7 @@ docker compose exec -T laravel.test php artisan optimize
 ### Scheduler (CRON no host)
 Adicionar ao crontab do host (`crontab -e`):
 ```
-* * * * * docker compose -f /SEU/CAMINHO/docker-compose.yml exec -T laravel.test php artisan schedule:run -q
+* * * * * docker compose -f /SEU/CAMINHO/docker-compose.prod.yml exec -T app php artisan schedule:run -q
 ```
 
 ### Queue worker (futuro)
@@ -203,10 +185,10 @@ Crontab diário:
 ## 10) Deploy sem downtime (básico)
 ```bash
 git pull
-docker compose pull           # se usar imagens remotas
-docker compose build --no-cache
-docker compose up -d --remove-orphans
-docker compose exec -T laravel.test php artisan migrate --force
+docker compose -f docker-compose.prod.yml pull           # se usar imagens remotas
+docker compose -f docker-compose.prod.yml build --no-cache
+docker compose -f docker-compose.prod.yml up -d --remove-orphans
+docker compose -f docker-compose.prod.yml exec -T app php artisan migrate --force
 docker system prune -f        # limpar imagens antigas
 ```
 
@@ -218,7 +200,7 @@ docker system prune -f        # limpar imagens antigas
 - Para voltar:
 ```bash
 git checkout <tag_anterior>
-docker compose up -d --build
+docker compose -f docker-compose.prod.yml up -d --build
 # Restaurar dump do MySQL se necessário
 ```
 
