@@ -6,6 +6,7 @@ cd /var/www/html
 mkdir -p storage/framework/{cache,sessions,testing,views}
 mkdir -p storage/logs
 touch storage/logs/laravel.log
+mkdir -p bootstrap/cache
 chown -R www-data:www-data storage bootstrap/cache
 
 if [ ! -L public/storage ]; then
