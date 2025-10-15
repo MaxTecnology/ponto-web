@@ -30,6 +30,11 @@ if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     run_www php artisan migrate --force --isolated || true
 fi
 
+if [ "$1" = "php" ] && [ "$2" = "artisan" ]; then
+    shift
+    exec su-exec www-data php artisan "$@"
+fi
+
 if [ "$1" = "php-fpm" ] || [ "$1" = "php-fpm8.3" ]; then
     exec "$@"
 fi

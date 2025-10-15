@@ -78,13 +78,18 @@ docker compose -f docker-compose.prod.yml logs -f app
 ---
 
 ## 4) Nginx (host) como reverse proxy + TLS
+```bash
+sudo apt-get update
+sudo apt-get install -y nginx
+```
+
 Instale Nginx no host e crie um `server` apontando para o serviço `web` exposto na porta 8080 do host.
 
 **/etc/nginx/sites-available/ponto.conf** (resumo):
 ```
 server {
     listen 80;
-    server_name ponto.dominio.com;
+    server_name ponto.g2asolucoescontabeis.com.br;
     location / {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -105,7 +110,7 @@ sudo nginx -t && sudo systemctl reload nginx
 **TLS (Let's Encrypt):**
 ```bash
 sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d ponto.dominio.com --redirect -m seu@email -n --agree-tos
+sudo certbot --nginx -d ponto.g2asolucoescontabeis.com.br --redirect -m maximizebot@gmail.com -n --agree-tos
 ```
 
 > Renovação automática via `systemd`/cron do certbot já vem habilitada.
