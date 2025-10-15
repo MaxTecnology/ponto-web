@@ -4,6 +4,7 @@ set -e
 cd /var/www/html
 
 mkdir -p storage/framework/{cache,sessions,testing,views}
+mkdir -p storage/framework/cache/data
 mkdir -p storage/logs
 touch storage/logs/laravel.log
 mkdir -p bootstrap/cache
@@ -27,6 +28,10 @@ fi
 
 if [ "${RUN_MIGRATIONS:-false}" = "true" ]; then
     run_www php artisan migrate --force --isolated || true
+fi
+
+if [ "$1" = "php-fpm" ] || [ "$1" = "php-fpm8.3" ]; then
+    exec "$@"
 fi
 
 exec su-exec www-data "$@"
