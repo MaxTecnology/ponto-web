@@ -43,17 +43,17 @@ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plug
 git clone <SEU_REPO> ponto-web
 cd ponto-web
 
-cp .env.docker.example .env.docker
-nano .env.docker
+cp .env.docker.example .env
+nano .env
 ```
 
-**Campos importantes em `.env.docker`:**
+**Campos importantes em `.env`:**
 - `APP_URL`, `APP_NAME`, `APP_BRAND`, `APP_LOGO` — apontam o subdomínio público e a identidade visual.
 - `DB_*` — credenciais usadas pelo container MySQL interno.
 - `RUN_MIGRATIONS` — deixe `true` no primeiro deploy para rodar `php artisan migrate --force` automaticamente.
 
 > Gere uma `APP_KEY` antes de subir (após o primeiro `docker compose -f docker-compose.prod.yml build`):
-> `docker compose -f docker-compose.prod.yml run --rm app php artisan key:generate --show` — copie o valor para `.env.docker`.
+> `docker compose -f docker-compose.prod.yml run --rm app php artisan key:generate --show` — copie o valor para `.env`.
 
 ---
 
@@ -121,7 +121,7 @@ sudo certbot --nginx -d ponto.g2asolucoescontabeis.com.br --redirect -m maximize
 Na maioria dos casos o entrypoint já terá executado os passos abaixo, mas vale validar:
 
 ```bash
-# Opcional: imprimir uma nova chave (copie para .env.docker se precisar rotacionar)
+# Opcional: imprimir uma nova chave (copie para .env se precisar rotacionar)
 docker compose -f docker-compose.prod.yml exec app php artisan key:generate --show
 
 # Garantir symlink do storage

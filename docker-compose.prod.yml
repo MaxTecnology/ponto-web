@@ -6,7 +6,7 @@ services:
     image: ponto-web-app:latest
     restart: unless-stopped
     env_file:
-      - .env.docker
+      - .env
     environment:
       APP_CACHE_CONFIG: "true"
     volumes:
@@ -38,7 +38,7 @@ services:
     image: mysql:8.0
     restart: unless-stopped
     env_file:
-      - .env.docker
+      - .env
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-secret}
       MYSQL_DATABASE: ${DB_DATABASE:-ponto}
